@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Image2Text/sw.js', { scope: '/Image2Text/' })})}
