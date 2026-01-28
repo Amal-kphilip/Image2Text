@@ -24,7 +24,13 @@ export function Controls({
     charSet, setCharSet,
     asciiSets = [],
 
-    onCopy
+    onCopy,
+    onSaveTxt,
+    onSavePng,
+
+    // Editor
+    onEdit,
+    hasImage
 }) {
     const handleReset = () => {
         setBrightness(1.0);
@@ -70,6 +76,11 @@ export function Controls({
                             Upload Image
                             <input type="file" accept="image/*" onChange={onFileChange} />
                         </label>
+                        {hasImage && (
+                            <button className="edit-btn" onClick={onEdit}>
+                                ✂️ Crop / Rotate Image
+                            </button>
+                        )}
                     </div>
 
                     {/* Mode Selector */}
@@ -199,9 +210,15 @@ export function Controls({
                 </>
             )}
 
-            <div className="control-group action-group">
-                <button className="copy-btn" onClick={onCopy}>
+            <div className="control-group action-group-row">
+                <button className="action-btn primary" onClick={onCopy}>
                     Copy to Clipboard
+                </button>
+                <button className="action-btn secondary" onClick={onSaveTxt}>
+                    Save ASCII Art
+                </button>
+                <button className="action-btn secondary" onClick={onSavePng}>
+                    Save as PNG
                 </button>
             </div>
         </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Controls } from './components/Controls';
 import { OutputDisplay } from './components/OutputDisplay';
 import { Toast } from './components/Toast';
+import { ImageEditor } from './components/ImageEditor';
 import { ImageProcessor, ASCII_SETS } from './core/imageProcessor';
 import { TextProcessor } from './core/textProcessor';
 import { fontNames } from './core/fonts';
@@ -11,6 +12,11 @@ function App() {
   const [file, setFile] = useState(null);
   const [imgElement, setImgElement] = useState(null);
   const [text, setText] = useState('');
+
+  // Editor State
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalImage, setOriginalImage] = useState(null); // The raw file as data URL to pass to editor
+  const [editorSource, setEditorSource] = useState(null); // What to show in editor
 
   // Mode State
   const [inputMode, setInputMode] = useState('image'); // 'image' | 'text'
@@ -34,7 +40,7 @@ function App() {
   const [threshold, setThreshold] = useState(128);
 
   // Text Controls
-  const [textInput, setTextInput] = useState('Sample ');
+  const [textInput, setTextInput] = useState('MESSI');
   const [selectedFont, setSelectedFont] = useState('Standard');
 
   const [toast, setToast] = useState(null);
@@ -44,11 +50,15 @@ function App() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
+        const result = e.target.result;
+        setOriginalImage(result); // Keep original
+        setEditorSource(result);
+
         const img = new Image();
         img.onload = () => {
           setImgElement(img);
         };
-        img.src = e.target.result;
+        img.src = result;
       };
       reader.readAsDataURL(file);
     }
@@ -96,6 +106,34 @@ function App() {
     }
   };
 
+  const startEditing = () => {
+    if (originalImage) {
+      setIsEditing(true);
+    } else {
+      setToast("Upload an image first!");
+    }
+  };
+
+  const handleEditSave = (newImageSrc) => {
+    // Create new img element from cropped/edited result
+    const img = new Image();
+    img.onload = () => {
+      setImgElement(img);
+      setIsEditing(false);
+      // Set this as the new "source" for future edits? 
+      // Usually better to keep editing from the current state if user clicks edit again?
+      // Or always edit original? 
+      // User asked "rotate it as they fix".
+      // If I crop, then rotate, I expect to rotate the cropped version.
+      setEditorSource(newImageSrc);
+    };
+    img.src = newImageSrc;
+  };
+
+  const handleEditCancel = () => {
+    setIsEditing(false);
+  };
+
   const copyToClipboard = async () => {
     if (!text) {
       setToast("Nothing to copy!");
@@ -127,8 +165,83 @@ function App() {
     }
   };
 
+  const handleSaveAsTxt = () => {
+    if (!text) return;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'ascii-art.txt';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setToast("Saved as ascii-art.txt");
+  };
+
+  const handleSaveAsPng = () => {
+    if (!text) return;
+
+    // Create an off-screen canvas
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Parse lines
+    const lines = text.split('\n');
+
+    // Font settings
+    const fontSize = 14;
+    const lineHeight = 14;
+    const fontFamily = 'Courier New, monospace';
+
+    ctx.font = `${fontSize}px ${fontFamily}`;
+
+    // Measure width
+    let maxWidth = 0;
+    lines.forEach(line => {
+      const metrics = ctx.measureText(line);
+      if (metrics.width > maxWidth) maxWidth = metrics.width;
+    });
+
+    // Dimensions (add padding)
+    const padding = 20;
+    canvas.width = Math.ceil(maxWidth + padding * 2);
+    canvas.height = Math.ceil(lines.length * lineHeight + padding * 2);
+
+    // Draw background
+    ctx.fillStyle = '#111111'; // Dark bg
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Text
+    ctx.fillStyle = '#eeeeee'; // Light text
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.textBaseline = 'top';
+
+    lines.forEach((line, index) => {
+      ctx.fillText(line, padding, padding + index * lineHeight);
+    });
+
+    // Convert and download
+    const url = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'ascii-art.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setToast("Saved as ascii-art.png");
+  };
+
   return (
     <div className="app-container">
+      {isEditing && (
+        <ImageEditor
+          src={editorSource}
+          onSave={handleEditSave}
+          onCancel={handleEditCancel}
+        />
+      )}
+
       <Controls
         onFileChange={handleFileChange}
         inputMode={inputMode} setInputMode={setInputMode}
@@ -154,6 +267,12 @@ function App() {
         threshold={threshold} setThreshold={setThreshold}
 
         onCopy={copyToClipboard}
+        onSaveTxt={handleSaveAsTxt}
+        onSavePng={handleSaveAsPng}
+
+        // Editor
+        onEdit={startEditing}
+        hasImage={!!imgElement}
       />
       <OutputDisplay text={text} />
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
