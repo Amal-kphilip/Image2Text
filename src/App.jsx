@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Controls } from './components/Controls';
 import { OutputDisplay } from './components/OutputDisplay';
 import { Toast } from './components/Toast';
-import { ImageProcessor } from './core/imageProcessor';
+import { ImageProcessor, ASCII_SETS } from './core/imageProcessor';
+import { TextProcessor } from './core/textProcessor';
+import { fontNames } from './core/fonts';
 import './index.css';
 
 function App() {
@@ -10,12 +12,30 @@ function App() {
   const [imgElement, setImgElement] = useState(null);
   const [text, setText] = useState('');
 
-  // Controls
-  const [width, setWidth] = useState(30);
-  const [mode, setMode] = useState('braille');
+  // Mode State
+  const [inputMode, setInputMode] = useState('image'); // 'image' | 'text'
+
+  // Image Controls
+  const [width, setWidth] = useState(50);
+  const [mode, setMode] = useState('ascii'); // Default to ascii mostly
+
+  // Filters
+  const [brightness, setBrightness] = useState(1.0);
   const [contrast, setContrast] = useState(1.0);
-  const [threshold, setThreshold] = useState(128);
+  const [saturation, setSaturation] = useState(1.0);
+  const [grayscale, setGrayscale] = useState(0);
+  const [sepia, setSepia] = useState(0);
+  const [hue, setHue] = useState(0);
   const [invert, setInvert] = useState(false);
+
+  // Advanced
+  const [dithering, setDithering] = useState('None');
+  const [charSet, setCharSet] = useState('Normal');
+  const [threshold, setThreshold] = useState(128);
+
+  // Text Controls
+  const [textInput, setTextInput] = useState('MESSI');
+  const [selectedFont, setSelectedFont] = useState('Standard');
 
   const [toast, setToast] = useState(null);
 
@@ -34,19 +54,41 @@ function App() {
     }
   }, [file]);
 
-  // Process image when dependencies change
+  // Process Content (Image or Text)
   useEffect(() => {
-    if (imgElement) {
-      const result = ImageProcessor.process(imgElement, {
-        width,
-        mode,
-        contrast,
-        threshold,
-        invert
+    if (inputMode === 'image') {
+      if (imgElement) {
+        const result = ImageProcessor.process(imgElement, {
+          width,
+          mode,
+          // Filters
+          brightness,
+          contrast,
+          saturation,
+          grayscale,
+          sepia,
+          hue,
+          invert,
+          // Advanced
+          dithering,
+          charSet,
+          threshold
+        });
+        setText(result);
+      }
+    } else {
+      // Text Mode
+      TextProcessor.process(textInput, selectedFont).then(result => {
+        setText(result);
       });
-      setText(result);
     }
-  }, [imgElement, width, mode, contrast, threshold, invert]);
+  }, [
+    inputMode, imgElement,
+    width, mode,
+    brightness, contrast, saturation, grayscale, sepia, hue, invert,
+    dithering, charSet, threshold,
+    textInput, selectedFont
+  ]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -89,11 +131,28 @@ function App() {
     <div className="app-container">
       <Controls
         onFileChange={handleFileChange}
+        inputMode={inputMode} setInputMode={setInputMode}
+        textInput={textInput} setTextInput={setTextInput}
+        font={selectedFont} setFont={setSelectedFont}
+        fontOptions={fontNames}
+
+        // Image Props
         width={width} setWidth={setWidth}
         mode={mode} setMode={setMode}
+
+        brightness={brightness} setBrightness={setBrightness}
         contrast={contrast} setContrast={setContrast}
-        threshold={threshold} setThreshold={setThreshold}
+        saturation={saturation} setSaturation={setSaturation}
+        grayscale={grayscale} setGrayscale={setGrayscale}
+        sepia={sepia} setSepia={setSepia}
+        hue={hue} setHue={setHue}
         invert={invert} setInvert={setInvert}
+
+        dithering={dithering} setDithering={setDithering}
+        charSet={charSet} setCharSet={setCharSet}
+        asciiSets={Object.keys(ASCII_SETS)}
+        threshold={threshold} setThreshold={setThreshold}
+
         onCopy={copyToClipboard}
       />
       <OutputDisplay text={text} />
