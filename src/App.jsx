@@ -34,7 +34,7 @@ function App() {
   const [threshold, setThreshold] = useState(128);
 
   // Text Controls
-  const [textInput, setTextInput] = useState('MESSI');
+  const [textInput, setTextInput] = useState('Sample ');
   const [selectedFont, setSelectedFont] = useState('Standard');
 
   const [toast, setToast] = useState(null);
